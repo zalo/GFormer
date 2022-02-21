@@ -1,5 +1,5 @@
 import * as THREE from '../node_modules/three/build/three.module.js';
-import { GCodeLoader } from '../node_modules/three/examples/jsm/loaders/GCodeLoader.js';
+import { GCodeLoader } from './GCodeLoader.js';
 import World from './World.js';
 import { BenchyGCode } from './BenchyGCode.js';
 
@@ -43,10 +43,8 @@ export class GCodeDeformer {
 
         // Add Interaction Listeners
         this.world.renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
-        this.world.renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this))
-        this.world.renderer.domElement.addEventListener('pointerup', this.onPointerUp.bind(this) )
-
-
+        this.world.renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
+        this.world.renderer.domElement.addEventListener('pointerup'  , this.onPointerUp  .bind(this));
     }
 
     loadGCode(gcode) {
@@ -149,8 +147,5 @@ export class GCodeDeformer {
         return null;
     }
 
-    update() {
-        this.raycastGCode();
-    }
-
+    update() { this.raycastGCode(); }
 }
