@@ -2,6 +2,7 @@
 import { GUI } from '../node_modules/three/examples/jsm/libs/lil-gui.module.min.js';
 import { GCodeDeformer } from './GCodeDeformer.js';
 import World from './World.js';
+import { FileHandler } from './FileHandler.js';
 
 /** The fundamental set up and animation structures for 3D Visualization */
 export default class Main {
@@ -33,30 +34,7 @@ export default class Main {
         // Construct the render world
         this.world = new World(this);
         this.deformer = new GCodeDeformer(this.world);
-
-        // Create the file drag and drop handler
-        document.body.ondragover = (ev) => {
-            ev.dataTransfer.dropEffect = 'copy';
-            this.world.container.style.border = "5px solid #0af";
-            ev.preventDefault();
-        };
-        document.body.ondragleave = (ev) => { this.world.container.style.border = "none"; }
-        document.body.ondragend = (ev) => { this.world.container.style.border = "none"; }
-        document.body.ondrop = (ev) => {
-            console.log('File(s) dropped');
-            this.world.container.border = "none";
-            // Prevent default behavior (Prevent file from being opened)
-            ev.preventDefault();
-            // Open the file text and load the GCode
-            if (ev.dataTransfer.items) {
-                if (ev.dataTransfer.items[0].kind === 'file') {
-                    ev.dataTransfer.items[0].getAsFile().text().then(text => this.deformer.loadGCode(text));
-                }
-            } else {
-                ev.dataTransfer.files[0].text().then(text => this.deformer.loadGCode(text));
-            }
-            this.world.container.border = "none";
-        };
+        this.fileHandler = new FileHandler(this.world, this.deformer.loadGCode.bind(this.deformer));
     }
 
     /** Update the simulation */
@@ -66,7 +44,6 @@ export default class Main {
         this.deformer.update();
         this.world.renderer.render(this.world.scene, this.world.camera);
         this.world.stats.update();
-
     }
 
     // Log Errors as <div>s over the main viewport

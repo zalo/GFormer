@@ -19,7 +19,7 @@ export class GCodeDeformer {
         this.bindPoints      = [];
         /** @type {THREE.Mesh[]} */
         this.controlPoints   = [];
-        this.pointGeometry   = new THREE.SphereGeometry( 0.025 );
+        this.pointGeometry   = new THREE.SphereGeometry( 0.05 );
         this.bindMaterial    = new THREE.MeshBasicMaterial( { color: 0x888888 } );
         this.controlMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
@@ -28,7 +28,7 @@ export class GCodeDeformer {
         this.pointer   = new THREE.Vector2();
         this.raycaster = new THREE.Raycaster();
         this.raycaster.params.Line.threshold = 0.5;
-        this.cursorGeometry = new THREE.SphereGeometry( 0.05 );
+        this.cursorGeometry = new THREE.SphereGeometry( 0.025 );
         this.cursorMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
         this.cursor = new THREE.Mesh( this.cursorGeometry, this.cursorMaterial );
         this.cursor.visible = false;
@@ -106,7 +106,7 @@ export class GCodeDeformer {
             }
         } else {
             let currentPosition = this.raycastGCode();
-            if (currentPosition) {
+            if (currentPosition && event.button === 0) {
                 event.preventDefault();
                 this.currentlyDragging = true;
                 this.world.controls.enabled = false;
