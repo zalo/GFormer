@@ -12,20 +12,17 @@ export class FileHandler {
             if (ev.dataTransfer.items) {
                 if (ev.dataTransfer.items[0].kind === 'file') {
                     ev.dataTransfer.items[0].getAsFile().text().then((text) => {
-                        this.world.container.border = "none";
-                        console.log(this.world.container);
                         gcodeParseCallback(text);
                     });
                 }
             } else {
                 ev.dataTransfer.files[0].text().then((text) => {
-                    this.world.container.border = "none";
-                    console.log(this.world.container);
                     gcodeParseCallback(text);
                 });
             }
             // Prevent default behavior (Prevent file from being opened)
             ev.preventDefault();
+            this.world.container.style.border = "none";
         };
         document.body.ondragover = (ev) => {
             ev.dataTransfer.dropEffect = 'copy';
