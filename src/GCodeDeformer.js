@@ -8,12 +8,12 @@ import { Deformer } from './Deformer.js';
 export class GCodeDeformer {
 
     /** @param {World} world */
-    constructor(world) {
+    constructor(world, deformerParams) {
         /** @type {World} */
         this.world = world;
+        this.deformerParams = deformerParams;
         this.loader = new GCodeLoader();
         this.gcodeObject = null;
-        this.loadGCode(BenchyGCode);
 
         // Setup deformer state
         /** @type {THREE.Mesh[]} */
@@ -42,8 +42,8 @@ export class GCodeDeformer {
         this.draggingPosition = new THREE.Vector3();
         this.draggingDepth = 0;
 
-        // Deformer
-        this.deformer = new Deformer(this.world, this.gcodeObject, this.bindPoints, this.controlPoints);
+        // Load GCode
+        this.loadGCode(BenchyGCode);
 
         // Add Interaction Listeners
         this.world.renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
@@ -56,18 +56,30 @@ export class GCodeDeformer {
         this.gcodeObject = this.loader.parse(gcode);
         this.gcodeObject.position.set(-5, 0, 5);
         this.gcodeObject.scale.set(0.05, 0.05, 0.05);
-        this.world.scene.add( this.gcodeObject );
+        this.world.scene.add(this.gcodeObject);
+        
+        console.log(this.bindPoints, this.controlPoints)
+        this.deformer = new Deformer(this.world, this.gcodeObject, this.deformerParams, this.bindPoints, this.controlPoints);
+        this.deformer.gcodeObject = this.gcodeObject;
     }
 
-    addPoint(point) {
+    updateDeformerParams() {
+        this.deformer.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints);
+    }
+
+    addPoint(intersection) {
+        // Derive resting point from index:
+        let bindPos = new THREE.Vector3().fromArray(this.deformer.restingPositions, intersection.index * 3);
+        this.gcodeObject.localToWorld(bindPos);
+
         let bindPoint = new THREE.Mesh(this.pointGeometry, this.bindMaterial);
-        bindPoint.position.copy(point);
+        bindPoint.position.copy(bindPos);
         this.world.scene.add(bindPoint);
         this.bindPoints.push(bindPoint);
         bindPoint.isBindPoint = true;
 
         let controlPoint = new THREE.Mesh(this.pointGeometry, this.controlMaterial);
-        controlPoint.position.copy(point);
+        controlPoint.position.copy(intersection.point);
         this.world.scene.add(controlPoint);
         this.controlPoints.push(controlPoint);
         controlPoint.isBindPoint = false;
@@ -80,7 +92,7 @@ export class GCodeDeformer {
         this.draggingPosition.copy(this.draggingPoint.position).project(this.world.camera);
         this.draggingDepth = this.draggingPosition.z;
 
-        this.deformer.initializeWeights(1.0, this.bindPoints, this.controlPoints);
+        this.deformer.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints);
     }
 
     onPointerMove( event ) {
@@ -119,16 +131,16 @@ export class GCodeDeformer {
                     this.bindPoints = this.arrayRemove(this.bindPoints, object.sibling);
                     this.controlPoints = this.arrayRemove(this.controlPoints, object);
                 }
-                this.deformer.initializeWeights(1.0, this.bindPoints, this.controlPoints);
+                this.deformer.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints);
                 this.deformer.updateDeformation();
             }
         } else {
-            let currentPosition = this.raycastGCode();
-            if (currentPosition && event.button === 0) {
+            let currentIntersection = this.raycastGCode();
+            if (currentIntersection && event.button === 0) {
                 event.preventDefault();
                 this.currentlyDragging = true;
                 this.world.controls.enabled = false;
-                this.addPoint(currentPosition);
+                this.addPoint(currentIntersection);
             } else {
                 this.currentlyDragging = false;
                 this.world.controls.enabled = true;
@@ -155,12 +167,12 @@ export class GCodeDeformer {
     raycastGCode() {
         this.world.camera.updateMatrixWorld();
         this.raycaster.setFromCamera( this.pointer, this.world.camera );
-        const intersects = this.raycaster.intersectObjects( this.gcodeObject.children, true );
+        const intersects = this.raycaster.intersectObjects( [this.gcodeObject.children[0]], true );
 
         if ( intersects.length > 0 ) {
             this.cursor.visible = true;
             this.cursor.position.copy(intersects[0].point);
-            return intersects[0].point;
+            return intersects[0];
         } else {
             this.cursor.visible = false;
         }

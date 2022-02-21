@@ -20,21 +20,25 @@ export default class Main {
         //let cpuSim = new URLSearchParams(window.location.search).get('cpu') === 'true';
         this.deformerParams = {
             'Lock Ground': true,
-            'Solve Rotation': true,
+            'Falloff Weight': 1,
+            'Solve Rotation': false,
             'Edit Attachment Points': false,
             'Max Steepness': 10,
             'Hide Travel Moves': true,
         };
-        this.gui = new GUI();
-        this.gui.add(this.deformerParams, 'Lock Ground');
-        this.gui.add(this.deformerParams, 'Solve Rotation');
-        this.gui.add(this.deformerParams, 'Edit Attachment Points');
-        this.gui.add(this.deformerParams, 'Max Steepness', 0.1, 30.0, 1.0);
 
         // Construct the render world
         this.world = new World(this);
-        this.deformer = new GCodeDeformer(this.world);
+        this.deformer = new GCodeDeformer(this.world, this.deformerParams);
         this.fileHandler = new FileHandler(this.world, this.deformer.loadGCode.bind(this.deformer));
+
+        this.gui = new GUI();
+        this.gui.add(this.deformerParams, 'Lock Ground')                  .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
+        this.gui.add(this.deformerParams, 'Falloff Weight', 1.0, 5.0, 0.1).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
+        // These aren't hooked up in the backend yet
+        //this.gui.add(this.deformerParams, 'Solve Rotation')               .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
+        //this.gui.add(this.deformerParams, 'Edit Attachment Points')       .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
+        //this.gui.add(this.deformerParams, 'Max Steepness', 0.1, 30.0, 1.0).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
     }
 
     /** Update the simulation */

@@ -4,7 +4,7 @@ export class Deformer {
     /** A simple class for deforming vertices given control points.
      *  @param {World} world
      *  @param {THREE.Group} gcodeObject */
-    constructor(world, gcodeObject, bindPoints, controlPoints) {
+    constructor(world, gcodeObject, deformerParams, bindPoints, controlPoints) {
         this.world = world;
         /** @type {THREE.Group} */
         this.gcodeObject = gcodeObject;
@@ -14,6 +14,8 @@ export class Deformer {
         this.controlPoints = controlPoints;
         /** @type {THREE.Vector3} */
         this.localControlPos = new THREE.Vector3();
+
+        this.deformerParams = deformerParams;
 
         this.numVertices = 0;
         let positions = [];
@@ -28,14 +30,17 @@ export class Deformer {
         //console.log("Initial Positions", positions);
         this.restingPositions  = new Float32Array(positions);
 
-        this.initializeWeights(1.0, this.bindPoints, this.controlPoints);
+        this.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints);
     }
 
-    initializeWeights(weightFalloff, bindPoints, controlPoints) {
+    initializeWeights(deformerParams, bindPoints, controlPoints) {
         /** @type {THREE.Mesh[]} */
         this.bindPoints = bindPoints;
         /** @type {THREE.Mesh[]} */
         this.controlPoints = controlPoints;
+
+        let lockToGround  = deformerParams['Lock Ground'];
+        let weightFalloff = deformerParams['Falloff Weight'];
 
         this.deformedPositions = new Float32Array(this.restingPositions);
 
@@ -43,7 +48,8 @@ export class Deformer {
         this.workingVector = new THREE.Vector3();
         this.weights = new Float32Array(this.numVertices * this.controlPoints.length);
         for (let i = 0; i < this.numVertices; i++) {
-            let totalWeight = 0.0;
+            // Initialize Weights such that vertices are locked to the ground
+            let totalWeight = lockToGround ? 1.0/Math.pow((Math.abs(this.restingPositions[(i * 3) + 2]-0.3)), weightFalloff) : 0.0;
             for (let j = 0; j < this.controlPoints.length; j++) {
                 this.workingVector.fromArray(this.restingPositions, i * 3);
                 let distance = this.workingVector.distanceTo(
@@ -58,12 +64,15 @@ export class Deformer {
                 this.weights[(i * this.controlPoints.length) + j] /= totalWeight;
             }
         }
+
+        // Refresh the model with the new positions
+        this.updateDeformation();
     }
 
     calculateDeformedPositions() {
         let translationalDisplacement = new THREE.Vector3();
-        //let vertToControlOffset       = new THREE.Vector3();
-        //let rotationalDisplacement    = new THREE.Vector3();
+        let vertToControlOffset       = new THREE.Vector3();
+        let rotationalDisplacement    = new THREE.Vector3();
         let vertexDisplacement = new THREE.Vector3();
         
         // Avoid Arrays of Vector3's
@@ -73,16 +82,27 @@ export class Deformer {
             this.gcodeObject.worldToLocal(new THREE.Vector3().copy(this.controlPoints[i].position)).toArray(localControlPositions, i * 3);
         }
 
+        let solveRotation = this.deformerParams['Solve Rotation'];
+
         for (let i = 0; i < this.numVertices; i++) {
             vertexDisplacement.set(0, 0, 0);
             for (let j = 0; j < this.controlPoints.length; j++) {
-                //translationalDisplacement.set( localControlPositions[j]).sub(localBindPositions[j]);
-                translationalDisplacement.x = localControlPositions[(j * 3)+0] - localBindPositions[(j * 3)+0];
-                translationalDisplacement.y = localControlPositions[(j * 3)+1] - localBindPositions[(j * 3)+1];
-                translationalDisplacement.z = localControlPositions[(j * 3)+2] - localBindPositions[(j * 3)+2];
-                //vertToControlOffset.fromArray(this.restingPositions, i*3).sub(localBindPositions[j]);
-                //rotationalDisplacement.copy(vertToControlOffset).applyQuaternion(this.controlPoints[j].quaternion).sub(vertToControlOffset);
-                vertexDisplacement.add(translationalDisplacement/*.add(rotationalDisplacement)*/.multiplyScalar(this.weights[(i * this.controlPoints.length) + j]));
+                if (solveRotation) {
+                    translationalDisplacement.x = localControlPositions[(j * 3) + 0] - localBindPositions[(j * 3) + 0];
+                    translationalDisplacement.y = localControlPositions[(j * 3) + 1] - localBindPositions[(j * 3) + 1];
+                    translationalDisplacement.z = localControlPositions[(j * 3) + 2] - localBindPositions[(j * 3) + 2];
+                    vertToControlOffset.fromArray(this.restingPositions, i * 3);//.sub(localBindPositions[j]);
+                    vertToControlOffset.x -= localBindPositions[(j * 3) + 0];
+                    vertToControlOffset.y -= localBindPositions[(j * 3) + 1];
+                    vertToControlOffset.z -= localBindPositions[(j * 3) + 2];
+                    rotationalDisplacement.copy(vertToControlOffset).applyQuaternion(this.controlPoints[j].quaternion).sub(vertToControlOffset);
+                    vertexDisplacement.add(translationalDisplacement.add(rotationalDisplacement).multiplyScalar(this.weights[(i * this.controlPoints.length) + j]));
+                } else {
+                    translationalDisplacement.x = localControlPositions[(j * 3) + 0] - localBindPositions[(j * 3) + 0];
+                    translationalDisplacement.y = localControlPositions[(j * 3) + 1] - localBindPositions[(j * 3) + 1];
+                    translationalDisplacement.z = localControlPositions[(j * 3) + 2] - localBindPositions[(j * 3) + 2];
+                    vertexDisplacement.add(translationalDisplacement.multiplyScalar(this.weights[(i * this.controlPoints.length) + j]));
+                }
             }
 
             // Apply the deformation
