@@ -2,6 +2,7 @@ import * as THREE from '../node_modules/three/build/three.module.js';
 import { GCodeLoader } from './GCodeLoader.js';
 import World from './World.js';
 import { BenchyGCode } from './BenchyGCode.js';
+import { Deformer } from './Deformer.js';
 
 /** The fundamental set up and animation structures for 3D Visualization */
 export class GCodeDeformer {
@@ -41,6 +42,9 @@ export class GCodeDeformer {
         this.draggingPosition = new THREE.Vector3();
         this.draggingDepth = 0;
 
+        // Deformer
+        this.deformer = new Deformer(this.world, this.gcodeObject, this.bindPoints, this.controlPoints);
+
         // Add Interaction Listeners
         this.world.renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
         this.world.renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
@@ -60,11 +64,13 @@ export class GCodeDeformer {
         bindPoint.position.copy(point);
         this.world.scene.add(bindPoint);
         this.bindPoints.push(bindPoint);
+        bindPoint.isBindPoint = true;
 
         let controlPoint = new THREE.Mesh(this.pointGeometry, this.controlMaterial);
         controlPoint.position.copy(point);
         this.world.scene.add(controlPoint);
         this.controlPoints.push(controlPoint);
+        controlPoint.isBindPoint = false;
 
         // This will let us delete these too
         bindPoint.sibling = controlPoint;
@@ -73,6 +79,8 @@ export class GCodeDeformer {
         this.draggingPoint = controlPoint;
         this.draggingPosition.copy(this.draggingPoint.position).project(this.world.camera);
         this.draggingDepth = this.draggingPosition.z;
+
+        this.deformer.initializeWeights(1.0, this.bindPoints, this.controlPoints);
     }
 
     onPointerMove( event ) {
@@ -85,6 +93,8 @@ export class GCodeDeformer {
             this.draggingPoint.position.y = this.pointer.y;
             this.draggingPoint.position.z = this.draggingDepth;
             this.draggingPoint.position.unproject(this.world.camera);
+
+            this.deformer.updateDeformation();
         }
     }
     onPointerDown(event) {
@@ -101,6 +111,16 @@ export class GCodeDeformer {
                 // Delete this point
                 this.world.scene.remove(object.sibling);
                 this.world.scene.remove(object);
+                // Remove point from lists
+                if (object.isBindPoint) {
+                    this.bindPoints = this.arrayRemove(this.bindPoints, object);
+                    this.controlPoints = this.arrayRemove(this.controlPoints, object.sibling);
+                } else {
+                    this.bindPoints = this.arrayRemove(this.bindPoints, object.sibling);
+                    this.controlPoints = this.arrayRemove(this.controlPoints, object);
+                }
+                this.deformer.initializeWeights(1.0, this.bindPoints, this.controlPoints);
+                this.deformer.updateDeformation();
             }
         } else {
             let currentPosition = this.raycastGCode();
@@ -145,6 +165,12 @@ export class GCodeDeformer {
             this.cursor.visible = false;
         }
         return null;
+    }
+
+    arrayRemove(arr, value) { 
+        return arr.filter(function(ele){ 
+            return ele !== value; 
+        });
     }
 
     update() { this.raycastGCode(); }
