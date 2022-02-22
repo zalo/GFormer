@@ -40,7 +40,7 @@ export default class Main {
         this.gui.add(this.deformerParams, 'Save GCode');
         this.gui.add(this.deformerParams, 'Falloff Weight', 0.5, 5.0, 0.1).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         this.gui.add(this.deformerParams, 'Lock Ground')                  .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
-        //this.gui.add(this.deformerParams, 'Solve Rotation')               .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
+        this.gui.add(this.deformerParams, 'Solve Rotation')               .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         // These aren't hooked up in the backend yet
         //this.gui.add(this.deformerParams, 'Max Steepness', 0.1, 30.0, 1.0).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
     }
