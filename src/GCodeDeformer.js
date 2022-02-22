@@ -49,9 +49,12 @@ export class GCodeDeformer {
         this.world.renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
         this.world.renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
         this.world.renderer.domElement.addEventListener('pointerup'  , this.onPointerUp  .bind(this));
+        
+        document.onkeydown = this.saveGCode.bind(this);
     }
 
     loadGCode(gcode) {
+        this.currentGCode = gcode;
         if (this.gcodeObject) { this.world.scene.remove(this.gcodeObject); }
         this.gcodeObject = this.loader.parse(gcode);
         this.gcodeObject.position.set(-5, 0, 5);
@@ -183,6 +186,34 @@ export class GCodeDeformer {
         return arr.filter(function(ele){ 
             return ele !== value; 
         });
+    }
+
+    async saveGCode(e) {
+        // Save the GCode on Ctrl+S
+        if (String.fromCharCode(e.keyCode).toLowerCase() === 's' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+
+            // Create the deformed GCode
+            let deformedGCode = this.loader.deform(this.currentGCode, this.deformer);
+
+            // Get the File Handle from the Save File Dialog
+            let options = {
+                types: [{
+                        description: "Warped GCode",
+                        accept: {
+                            ['application/gcode']: ['.gcode'],
+                        }}]};
+            let fileHandle = await window.showSaveFilePicker(options);
+
+            // Create a FileSystemWritableFileStream to write to.
+            let writable = await fileHandle.createWritable();
+            // Write the contents of the file to the stream.
+            await writable.write(deformedGCode);
+            // Close the file and write the contents to disk.
+            await writable.close();
+
+            console.log("Saved GCode to " + fileHandle.name);
+        }
     }
 
     update() { this.raycastGCode(); }

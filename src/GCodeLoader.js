@@ -165,10 +165,10 @@ class GCodeLoader {
         this.layers = [];
 
         // Deformer State Variable
-        let translationalDisplacement = new THREE.Vector3();
-        let vertToControlOffset       = new THREE.Vector3();
-        let rotationalDisplacement    = new THREE.Vector3();
-        let vertexDisplacement        = new THREE.Vector3();
+        let translationalDisplacement = new Vector3();
+        let vertToControlOffset       = new Vector3();
+        let rotationalDisplacement    = new Vector3();
+        let vertexDisplacement        = new Vector3();
         let weights = Array(deformer.controlPoints.length).fill(0);
         let solveRotation = deformer.deformerParams['Solve Rotation'];
         let currentPosition = new Vector3(0, 0, 0);//line.x, line.y, line.z);
@@ -220,27 +220,32 @@ class GCodeLoader {
                     weights, 0, translationalDisplacement, vertToControlOffset, rotationalDisplacement,
                     vertexDisplacement, solveRotation);
                 currentPosition.add(vertexDisplacement);
-                line.x = currentPosition.x;
-                line.y = currentPosition.y;
-                line.z = currentPosition.z;
 
                 // Change the "fullCommand" to reflect the deformed position
                 if (this.state.relative) {
                     // Don't feel like working this out right now...
                 } else {
+                    line.x = currentPosition.x;
+                    line.y = currentPosition.y;
+                    line.z = currentPosition.z;
+
                     // Calculate the change in Extruder Flow
                     let originalExtruderMovement = originalLine.e - this.originalState.e;
                     let originalLinearMovement = new Vector3(originalLine.x - this.originalState.x,
                         originalLine.y - this.originalState.y, originalLine.z - this.originalState.z).length();
                     let newLinearMovement = new Vector3(line.x - this.state.x, line.y - this.state.y, line.z - this.state.z).length();
-                    let newExtruderMovement = (originalExtruderMovement * (newLinearMovement / originalLinearMovement));
+
+                    let newExtruderMovement = originalLinearMovement != 0.0 ?
+                        (originalExtruderMovement * (newLinearMovement / originalLinearMovement))
+                        : originalExtruderMovement;
                     // TODO: Multiply the extruder movement by the vertical compression ratio of the new layer thickness...
                     line.e = this.state.e + newExtruderMovement;
 
-                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " F" + line.f;
+                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " F" + line.f+" ";
                 }
 
                 this.state = line;
+                this.originalState = originalLine;
             } else if (cmd === 'G90') {
                 //G90: Set to Absolute Positioning
                 this.state.relative = false;
