@@ -61,7 +61,6 @@ export class GCodeDeformer {
         this.gcodeObject.scale.set(0.05, 0.05, 0.05);
         this.world.scene.add(this.gcodeObject);
         
-        console.log(this.bindPoints, this.controlPoints)
         this.deformer = new Deformer(this.world, this.gcodeObject, this.deformerParams, this.bindPoints, this.controlPoints);
         this.deformer.gcodeObject = this.gcodeObject;
     }
@@ -136,6 +135,8 @@ export class GCodeDeformer {
                 }
                 this.deformer.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints);
                 this.deformer.updateDeformation();
+                this.currentlyDragging = false;
+                this.world.controls.enabled = true;
             }
         } else {
             let currentIntersection = this.raycastGCode();
@@ -201,7 +202,7 @@ export class GCodeDeformer {
                 types: [{
                         description: "Warped GCode",
                         accept: {
-                            ['application/gcode']: ['.gcode'],
+                            ['text/x-gcode']: ['.gcode'],
                         }}]};
             let fileHandle = await window.showSaveFilePicker(options);
 

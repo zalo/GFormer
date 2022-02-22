@@ -33,8 +33,10 @@ export default class Main {
         this.fileHandler = new FileHandler(this.world, this.deformer.loadGCode.bind(this.deformer));
 
         // Set up the GUI Panel
+        this.deformerParams['Load GCode'] = this.fileHandler.openFile.bind(this.fileHandler);
         this.deformerParams['Save GCode'] = this.deformer.saveGCode.bind(this.deformer);
         this.gui = new GUI();
+        this.gui.add(this.deformerParams, 'Load GCode');
         this.gui.add(this.deformerParams, 'Save GCode');
         this.gui.add(this.deformerParams, 'Lock Ground')                  .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         this.gui.add(this.deformerParams, 'Falloff Weight', 0.5, 5.0, 0.1).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
