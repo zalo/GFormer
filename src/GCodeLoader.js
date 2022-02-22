@@ -1,12 +1,15 @@
 import {
-	BufferGeometry,
-	Euler,
-	Float32BufferAttribute,
-	Group,
-	LineBasicMaterial,
-	LineDashedMaterial,
-	LineSegments,
+    BufferGeometry,
+    Euler,
+    Float32BufferAttribute,
+    Group,
+    LineBasicMaterial,
+    LineDashedMaterial,
+    LineSegments,
+    Vector3
 } from 'three';
+
+import { Deformer } from './Deformer.js';
 
 /**
  * GCodeLoader is used to load gcode files usually used for 3D printing or CNC applications.
@@ -151,6 +154,119 @@ class GCodeLoader {
         this.object.quaternion.setFromEuler(new Euler(- Math.PI / 2, 0, 0));
         return this.object;
     }
+
+    /** 
+     * @param {string} gcode 
+     * @param {Deformer} deformer */
+    deform(gcode, deformer) {
+        let outputGCode = "";
+        this.state         = { x: 0, y: 0, z: 0, e: 0, f: 0, extruding: false, relative: false };
+        this.originalState = { x: 0, y: 0, z: 0, e: 0, f: 0, extruding: false, relative: false };
+        this.layers = [];
+
+        // Deformer State Variable
+        let translationalDisplacement = new THREE.Vector3();
+        let vertToControlOffset       = new THREE.Vector3();
+        let rotationalDisplacement    = new THREE.Vector3();
+        let vertexDisplacement        = new THREE.Vector3();
+        let weights = Array(deformer.controlPoints.length).fill(0);
+        let solveRotation = deformer.deformerParams['Solve Rotation'];
+        let currentPosition = new Vector3(0, 0, 0);//line.x, line.y, line.z);
+        let lockToGround  = deformer.deformerParams['Lock Ground'];
+        let weightFalloff = deformer.deformerParams['Falloff Weight'];
+
+        let lines = gcode.split('\n'); //.replace(/;.+/g, '')
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith(";")) { outputGCode += lines[i] + "\n"; continue; }
+
+            let uncommentedSplitLine = lines[i].split(';');
+            let tokens = uncommentedSplitLine[0].split(' ');
+            let cmd = tokens[0].toUpperCase();
+
+            let fullCommand = uncommentedSplitLine[0];
+
+            //Arguments
+            let args = {};
+            tokens.splice(1).forEach(function (token) {
+                if (token[0] !== undefined) {
+                    let key = token[0].toLowerCase();
+                    let value = parseFloat(token.substring(1));
+                    args[key] = value;
+                }
+            });
+
+            //Process commands
+            //G0/G1 – Linear Movement
+            if (cmd === 'G0' || cmd === 'G1') {
+                let line = {
+                    x: args.x !== undefined ? this.absolute(this.state.x, args.x) : this.state.x,
+                    y: args.y !== undefined ? this.absolute(this.state.y, args.y) : this.state.y,
+                    z: args.z !== undefined ? this.absolute(this.state.z, args.z) : this.state.z,
+                    e: args.e !== undefined ? this.absolute(this.state.e, args.e) : this.state.e,
+                    f: args.f !== undefined ? this.absolute(this.state.f, args.f) : this.state.f,
+                };
+                let originalLine = {
+                    x: args.x !== undefined ? this.absolute(this.originalState.x, args.x) : this.originalState.x,
+                    y: args.y !== undefined ? this.absolute(this.originalState.y, args.y) : this.originalState.y,
+                    z: args.z !== undefined ? this.absolute(this.originalState.z, args.z) : this.originalState.z,
+                    e: args.e !== undefined ? this.absolute(this.originalState.e, args.e) : this.originalState.e,
+                    f: args.f !== undefined ? this.absolute(this.originalState.f, args.f) : this.originalState.f,
+                };
+
+                // Calculate the deformed position of this point
+                currentPosition.set(originalLine.x, originalLine.y, originalLine.z);
+                deformer.calculateWeights(currentPosition, lockToGround, weightFalloff, weights, 0)
+                vertexDisplacement = deformer.calculateVertexDisplacement(currentPosition,
+                    weights, 0, translationalDisplacement, vertToControlOffset, rotationalDisplacement,
+                    vertexDisplacement, solveRotation);
+                currentPosition.add(vertexDisplacement);
+                line.x = currentPosition.x;
+                line.y = currentPosition.y;
+                line.z = currentPosition.z;
+
+                // Change the "fullCommand" to reflect the deformed position
+                if (this.state.relative) {
+                    // Don't feel like working this out right now...
+                } else {
+                    // Calculate the change in Extruder Flow
+                    let originalExtruderMovement = originalLine.e - this.originalState.e;
+                    let originalLinearMovement = new Vector3(originalLine.x - this.originalState.x,
+                        originalLine.y - this.originalState.y, originalLine.z - this.originalState.z).length();
+                    let newLinearMovement = new Vector3(line.x - this.state.x, line.y - this.state.y, line.z - this.state.z).length();
+                    let newExtruderMovement = (originalExtruderMovement * (newLinearMovement / originalLinearMovement));
+                    // TODO: Multiply the extruder movement by the vertical compression ratio of the new layer thickness...
+                    line.e = this.state.e + newExtruderMovement;
+
+                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " F" + line.f;
+                }
+
+                this.state = line;
+            } else if (cmd === 'G90') {
+                //G90: Set to Absolute Positioning
+                this.state.relative = false;
+            } else if (cmd === 'G91') {
+                //G91: Set to state.relative Positioning
+                this.state.relative = true;
+            }/* else if (cmd === 'G92') { // Ignore warping G92 commands for now
+                //G92: Set Position
+                const line = this.state;
+                line.x = args.x !== undefined ? args.x : line.x;
+                line.y = args.y !== undefined ? args.y : line.y;
+                line.z = args.z !== undefined ? args.z : line.z;
+                line.e = args.e !== undefined ? args.e : line.e;
+                this.state = line;
+            }*/
+
+            outputGCode += fullCommand;
+            for (let c = 1; c < uncommentedSplitLine.length; c++) {
+                outputGCode += ";" + uncommentedSplitLine[c];
+            }
+            outputGCode += "\n";
+        }
+
+        return outputGCode;
+    }
+
 }
 
 export { GCodeLoader };

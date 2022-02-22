@@ -34,7 +34,7 @@ export default class Main {
 
         this.gui = new GUI();
         this.gui.add(this.deformerParams, 'Lock Ground')                  .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
-        this.gui.add(this.deformerParams, 'Falloff Weight', 1.0, 5.0, 0.1).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
+        this.gui.add(this.deformerParams, 'Falloff Weight', 0.5, 5.0, 0.1).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         // These aren't hooked up in the backend yet
         //this.gui.add(this.deformerParams, 'Solve Rotation')               .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         //this.gui.add(this.deformerParams, 'Edit Attachment Points')       .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
