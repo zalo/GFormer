@@ -20,7 +20,7 @@ export class GCodeDeformer {
         this.bindPoints      = [];
         /** @type {THREE.Mesh[]} */
         this.controlPoints   = [];
-        this.pointGeometry   = new THREE.SphereGeometry( 0.05 );
+        this.pointGeometry   = new THREE.SphereGeometry( 1 );
         this.bindMaterial    = new THREE.MeshBasicMaterial( { color: 0x888888 } );
         this.controlMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
@@ -72,17 +72,18 @@ export class GCodeDeformer {
     addPoint(intersection) {
         // Derive resting point from index:
         let bindPos = new THREE.Vector3().fromArray(this.deformer.restingPositions, intersection.index * 3);
-        this.gcodeObject.localToWorld(bindPos);
+        //this.gcodeObject.localToWorld(bindPos);
 
         let bindPoint = new THREE.Mesh(this.pointGeometry, this.bindMaterial);
         bindPoint.position.copy(bindPos);
-        this.world.scene.add(bindPoint);
+        this.gcodeObject.add(bindPoint);
         this.bindPoints.push(bindPoint);
         bindPoint.isBindPoint = true;
 
         let controlPoint = new THREE.Mesh(this.pointGeometry, this.controlMaterial);
-        controlPoint.position.copy(intersection.point);
-        this.world.scene.add(controlPoint);
+        controlPoint.position.copy(this.gcodeObject.worldToLocal(intersection.point));
+        //controlPoint.rotateX(Math.PI / 2);
+        this.gcodeObject.add(controlPoint);
         this.controlPoints.push(controlPoint);
         controlPoint.isBindPoint = false;
 
@@ -91,7 +92,8 @@ export class GCodeDeformer {
         controlPoint.sibling = bindPoint;
 
         this.draggingPoint = controlPoint;
-        this.draggingPosition.copy(this.draggingPoint.position).project(this.world.camera);
+
+        this.gcodeObject.localToWorld(this.draggingPosition.copy(this.draggingPoint.position)).project(this.world.camera);
         this.draggingDepth = this.draggingPosition.z;
 
         this.deformer.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints);
@@ -107,6 +109,7 @@ export class GCodeDeformer {
             this.draggingPoint.position.y = this.pointer.y;
             this.draggingPoint.position.z = this.draggingDepth;
             this.draggingPoint.position.unproject(this.world.camera);
+            this.gcodeObject.worldToLocal(this.draggingPoint.position);
 
             this.deformer.updateDeformation();
         }
@@ -119,12 +122,12 @@ export class GCodeDeformer {
                 this.world.controls.enabled = false;
                 // Drag this point in camera space
                 this.draggingPoint = object;
-                this.draggingPosition.copy(this.draggingPoint.position).project(this.world.camera);
+                this.gcodeObject.localToWorld(this.draggingPosition.copy(this.draggingPoint.position)).project(this.world.camera);
                 this.draggingDepth = this.draggingPosition.z;
             } else {
                 // Delete this point
-                this.world.scene.remove(object.sibling);
-                this.world.scene.remove(object);
+                this.gcodeObject.remove(object.sibling);
+                this.gcodeObject.remove(object);
                 // Remove point from lists
                 if (object.isBindPoint) {
                     this.bindPoints = this.arrayRemove(this.bindPoints, object);
