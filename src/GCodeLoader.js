@@ -175,7 +175,7 @@ class GCodeLoader {
         let lockToGround  = deformer.deformerParams['Lock Ground'];
         let weightFalloff = deformer.deformerParams['Falloff Weight'];
 
-        let lines = gcode.split('\n'); //.replace(/;.+/g, '')
+        let lines = gcode.split(/\n/); //.replace(/;.+/g, '')
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].startsWith(";")) { outputGCode += lines[i] + "\n"; continue; }
 
@@ -222,7 +222,7 @@ class GCodeLoader {
                 currentPosition.add(vertexDisplacement);
 
                 // Change the "fullCommand" to reflect the deformed position
-                if (this.state.relative) {
+                if (this.originalState.relative) {
                     // Don't feel like working this out right now...
                 } else {
                     line.x = currentPosition.x;
@@ -235,23 +235,28 @@ class GCodeLoader {
                         originalLine.y - this.originalState.y, originalLine.z - this.originalState.z).length();
                     let newLinearMovement = new Vector3(line.x - this.state.x, line.y - this.state.y, line.z - this.state.z).length();
 
-                    let newExtruderMovement = originalLinearMovement != 0.0 ?
-                        (originalExtruderMovement * (newLinearMovement / originalLinearMovement))
-                        : originalExtruderMovement;
+                    let extruderScalar = originalLinearMovement != 0.0 ?
+                        (newLinearMovement / originalLinearMovement) : 1.0
+
+                    let newExtruderMovement = originalExtruderMovement * extruderScalar;
+                    line.f /= extruderScalar; // Lower the feedrate by the same amount the extrusion is increased...
+
                     // TODO: Multiply the extruder movement by the vertical compression ratio of the new layer thickness...
                     line.e = this.state.e + newExtruderMovement;
 
-                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " F" + line.f+" ";
+                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " F" + line.f + " ";
                 }
 
-                this.state = line;
-                this.originalState = originalLine;
+                Object.assign(this.state, line);
+                Object.assign(this.originalState, originalLine);
             } else if (cmd === 'G90') {
                 //G90: Set to Absolute Positioning
                 this.state.relative = false;
+                this.originalState.relative = false;
             } else if (cmd === 'G91') {
                 //G91: Set to state.relative Positioning
                 this.state.relative = true;
+                this.originalState.relative = true;
             }/* else if (cmd === 'G92') { // Ignore warping G92 commands for now
                 //G92: Set Position
                 const line = this.state;
