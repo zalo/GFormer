@@ -190,8 +190,8 @@ export class GCodeDeformer {
 
     async saveGCode(e) {
         // Save the GCode on Ctrl+S
-        if (String.fromCharCode(e.keyCode).toLowerCase() === 's' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
+        if ((e && String.fromCharCode(e.keyCode).toLowerCase() === 's' && (e.ctrlKey || e.metaKey)) || !e) {
+            if (e) { e.preventDefault(); }
 
             // Create the deformed GCode
             let deformedGCode = this.loader.deform(this.currentGCode, this.deformer);

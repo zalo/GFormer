@@ -24,7 +24,7 @@ export default class Main {
             'Solve Rotation': false,
             'Edit Attachment Points': false,
             'Max Steepness': 10,
-            'Hide Travel Moves': true,
+            'Hide Travel Moves': true
         };
 
         // Construct the render world
@@ -32,7 +32,10 @@ export default class Main {
         this.deformer = new GCodeDeformer(this.world, this.deformerParams);
         this.fileHandler = new FileHandler(this.world, this.deformer.loadGCode.bind(this.deformer));
 
+        // Set up the GUI Panel
+        this.deformerParams['Save GCode'] = this.deformer.saveGCode.bind(this.deformer);
         this.gui = new GUI();
+        this.gui.add(this.deformerParams, 'Save GCode');
         this.gui.add(this.deformerParams, 'Lock Ground')                  .onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         this.gui.add(this.deformerParams, 'Falloff Weight', 0.5, 5.0, 0.1).onChange(() => this.deformer.updateDeformerParams(this.deformerParams));
         // These aren't hooked up in the backend yet
