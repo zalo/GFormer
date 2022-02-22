@@ -9,7 +9,9 @@
       <img src="https://img.shields.io/github/license/zalo/GFormer" title="License: Apache V2"></a>-->  <!-- No idea what license this should be! -->
 </p>
 
-When this is complete, you should be able to take pre-sliced GCode and deform it for non-planar printing.
+Deform pre-sliced GCode for non-planar printing.
+
+[![GFormer Deforming a Benchy](./GCodeDistorter.gif)](https://zalo.github.io/GFormer/)
 
 [Inspired by CNC Kitchen](https://www.youtube.com/watch?v=0XaaUXOwzTs)
 
