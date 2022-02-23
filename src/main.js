@@ -20,7 +20,7 @@ export default class Main {
         //let cpuSim = new URLSearchParams(window.location.search).get('cpu') === 'true';
         this.deformerParams = {
             'Lock Ground': true,
-            'Falloff Weight': 1,
+            'Falloff Weight': 1.25,
             'Solve Rotation': false,
             'Edit Attachment Points': false,
             'Max Steepness': 10,

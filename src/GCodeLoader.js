@@ -155,6 +155,16 @@ class GCodeLoader {
         return this.object;
     }
 
+    deformSinglePoint(currentPosition, deformer, lockToGround, weightFalloff, weights,
+            translationalDisplacement, vertToControlOffset, rotationalDisplacement,
+            vertexDisplacement, solveRotation) {
+        deformer.calculateWeights(currentPosition, lockToGround, weightFalloff, weights, 0)
+        vertexDisplacement = deformer.calculateVertexDisplacement(currentPosition,
+            weights, 0, translationalDisplacement, vertToControlOffset, rotationalDisplacement,
+            vertexDisplacement, solveRotation);
+        currentPosition.add(vertexDisplacement);
+    }
+
     /** 
      * @param {string} gcode 
      * @param {Deformer} deformer */
@@ -171,7 +181,8 @@ class GCodeLoader {
         let vertexDisplacement        = new Vector3();
         let weights = Array(deformer.controlPoints.length).fill(0);
         let solveRotation = deformer.deformerParams['Solve Rotation'];
-        let currentPosition = new Vector3(0, 0, 0);//line.x, line.y, line.z);
+        let currentPosition = new Vector3(0, 0, 0);
+        let aboveCurrentPosition = new Vector3(0, 0, 0);
         let lockToGround  = deformer.deformerParams['Lock Ground'];
         let weightFalloff = deformer.deformerParams['Falloff Weight'];
 
@@ -215,11 +226,15 @@ class GCodeLoader {
 
                 // Calculate the deformed position of this point
                 currentPosition.set(originalLine.x, originalLine.y, originalLine.z);
-                deformer.calculateWeights(currentPosition, lockToGround, weightFalloff, weights, 0)
-                vertexDisplacement = deformer.calculateVertexDisplacement(currentPosition,
-                    weights, 0, translationalDisplacement, vertToControlOffset, rotationalDisplacement,
+                this.deformSinglePoint(currentPosition, deformer, lockToGround, weightFalloff, weights,
+                    translationalDisplacement, vertToControlOffset, rotationalDisplacement,
                     vertexDisplacement, solveRotation);
-                currentPosition.add(vertexDisplacement);
+
+                let epsilon = 0.1;
+                aboveCurrentPosition.set(originalLine.x, originalLine.y, originalLine.z + epsilon);
+                this.deformSinglePoint(aboveCurrentPosition, deformer, lockToGround, weightFalloff, weights,
+                    translationalDisplacement, vertToControlOffset, rotationalDisplacement,
+                    vertexDisplacement, solveRotation);
 
                 // Change the "fullCommand" to reflect the deformed position
                 if (this.originalState.relative) {
@@ -235,8 +250,11 @@ class GCodeLoader {
                         originalLine.y - this.originalState.y, originalLine.z - this.originalState.z).length();
                     let newLinearMovement = new Vector3(line.x - this.state.x, line.y - this.state.y, line.z - this.state.z).length();
 
+                    // Scale by the length of the extrusion movement
                     let extruderScalar = originalLinearMovement != 0.0 ?
-                        (newLinearMovement / originalLinearMovement) : 1.0
+                        (newLinearMovement / originalLinearMovement) : 1.0;
+                    // Scale by the the current "layer height"
+                    extruderScalar *= extruderScalar * (currentPosition.distanceTo(aboveCurrentPosition) / epsilon);
 
                     let newExtruderMovement = originalExtruderMovement * extruderScalar;
                     line.f /= extruderScalar; // Lower the feedrate by the same amount the extrusion is increased...
@@ -244,7 +262,8 @@ class GCodeLoader {
                     // TODO: Multiply the extruder movement by the vertical compression ratio of the new layer thickness...
                     line.e = this.state.e + newExtruderMovement;
 
-                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " F" + line.f + " ";
+                    fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " ";
+                    if (args.f !== undefined) { fullCommand += "F" + line.f + " "; }
                 }
 
                 Object.assign(this.state, line);

@@ -46,10 +46,10 @@ export class Deformer {
 
         // Calculate the normalized weights of each each vertex relative to each control point
         this.workingVector = new THREE.Vector3();
-        this.weights = new Float32Array(this.numVertices * this.controlPoints.length);
+        this.weights = new Float32Array(this.numVertices * this.bindPoints.length);
         for (let i = 0; i < this.numVertices; i++) {
             this.workingVector.fromArray(this.restingPositions, i * 3);
-            this.calculateWeights(this.workingVector, lockToGround, weightFalloff, this.weights, i * this.controlPoints.length);
+            this.calculateWeights(this.workingVector, lockToGround, weightFalloff, this.weights, i * this.bindPoints.length);
         }
 
         // Refresh the model with the new positions

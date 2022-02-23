@@ -111,6 +111,7 @@ export class GCodeDeformer {
             this.draggingPoint.position.unproject(this.world.camera);
             this.gcodeObject.worldToLocal(this.draggingPoint.position);
 
+            if (this.draggingPoint.isBindPoint) { this.deformer.initializeWeights(this.deformerParams, this.bindPoints, this.controlPoints); }
             this.deformer.updateDeformation();
         }
     }
