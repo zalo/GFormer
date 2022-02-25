@@ -258,8 +258,6 @@ class GCodeLoader {
 
                     let newExtruderMovement = originalExtruderMovement > 0 ? originalExtruderMovement * extruderScalar : originalExtruderMovement;
                     line.f /= extruderScalar; // Lower the feedrate by the same amount the extrusion is increased...
-
-                    // TODO: Multiply the extruder movement by the vertical compression ratio of the new layer thickness...
                     line.e = this.state.e + newExtruderMovement;
 
                     fullCommand = cmd + " X" + line.x + " Y" + line.y + " Z" + line.z + " E" + line.e + " ";
